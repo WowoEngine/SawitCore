@@ -1,0 +1,7 @@
+cargo:rerun-if-changed=P:\SawitCore-OS\Cargo.toml
+cargo:rustc-link-search=native=P:\SawitCore-OS\target\bootimage\bootloader\x86_64-bootloader\release\build\bootloader-6e34b289380a668a\out
+cargo:rustc-link-lib=static=kernel_bin-sawitcore-os
+cargo:rerun-if-env-changed=KERNEL
+cargo:rerun-if-env-changed=KERNEL_MANIFEST
+cargo:rerun-if-changed=\\?\P:\SawitCore-OS\target\x86_64-sawitcore\debug\sawitcore-os
+cargo:rerun-if-changed=build.rs
