@@ -1,1 +1,1 @@
-P:\SawitCore-OS\target\x86_64-sawitcore\debug\libsawitcore_os.rlib: P:\SawitCore-OS\src\drivers\mod.rs P:\SawitCore-OS\src\drivers\vga_buffer.rs P:\SawitCore-OS\src\gdt.rs P:\SawitCore-OS\src\interrupts.rs P:\SawitCore-OS\src\lib.rs
+P:\SawitCore-OS\target\x86_64-sawitcore\debug\libsawitcore_os.rlib: P:\SawitCore-OS\src\allocator.rs P:\SawitCore-OS\src\drivers\mod.rs P:\SawitCore-OS\src\drivers\vga_buffer.rs P:\SawitCore-OS\src\gdt.rs P:\SawitCore-OS\src\interrupts.rs P:\SawitCore-OS\src\lib.rs P:\SawitCore-OS\src\memory.rs
