@@ -7,7 +7,6 @@ use bootloader::{BootInfo, entry_point};
 use sawitcore_os::memory::BootInfoFrameAllocator;
 use sawitcore_os::allocator;
 use x86_64::{VirtAddr};
-use alloc::{boxed::Box, vec::Vec};
 
 extern crate alloc;
 
@@ -30,18 +29,9 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
     allocator::init_heap(&mut mapper, &mut frame_allocator)
         .expect("heap initialization failed");
 
-    // Heap Allocation Tests
-    let heap_value = Box::new(41);
-    println!("heap_value at {:p}", heap_value);
-
-    let mut vec = Vec::new();
-    for i in 0..500 {
-        vec.push(i);
-    }
-    println!("vec at {:p}", vec.as_slice());
-
-    // println!("It did not crash!");
-    // println!("Keyboard interrupts are enabled. Type something:");
+    let mut executor = sawitcore_os::task::simple_executor::SimpleExecutor::new();
+    executor.spawn(sawitcore_os::task::Task::new(sawitcore_os::task::shell::shell_task()));
+    executor.run();
 
     #[allow(clippy::empty_loop)]
     loop {

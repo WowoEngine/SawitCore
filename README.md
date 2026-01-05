@@ -1,46 +1,62 @@
-# SawitCore OS
+# SawitCore [OS]
 
-SawitCore OS is a specialized Unikernel Database Operating System built with Rust, designed to run directly on bare metal (x86_64) without a traditional OS like Linux. It prioritizes performance for database workloads through direct hardware access (VirtIO).
+SawitCore OS is a specialized Unikernel Database Operating System built with Rust, designed to run directly on bare metal (x86_64) without a traditional OS like Linux. It prioritizes performance for database workloads through direct hardware access.
+
+The goal is to port the **SawitDB** engine (originally Go/Node.js) to run natively as the OS kernel.
+
+## Current Features
+
+- **Kernel Core**: Minimal x86_64 kernel with custom target specification.
+- **VGA Text Mode**: Driver for printing text to the screen (`println!` macro).
+- **Interrupt Handling**:
+    - IDT (Interrupt Descriptor Table)
+    - PIC (Programmable Interrupt Controller)
+    - Keyboard Input (via PS/2 Controller)
+- **Memory Management**:
+    - Paging (Recursive Page Tables)
+    - Heap Allocation (`Linked List Allocator`)
+    - Dynamic types enabled (`Box`, `Vec`, `String`, etc.)
+- **Async & Multitasking**:
+    - Cooperative Multitasking (Async/Await)
+    - Simple Task Executor
+    - Lock-free Scancode Queue (`crossbeam-queue`)
+- **User Interface**:
+    - Interactive Shell (`Sawit> `)
+    - Management Menu (`manage` command)
 
 ## Project Structure
 
 The project is organized as a Rust workspace:
 
-- `kernel/`: The core OS kernel (bootable binary).
-    - `src/memory/`: Paging and Heap allocation.
-    - `src/drivers/`: Hardware drivers (VirtIO Net, Block).
-    - `src/storage/`: Database engine (Ported from SawitDB).
-- `tools/`: Helper scripts for building and running via QEMU.
-- `x86_64-sawitcore.json`: Custom target specification for the unikernel.
+- `src/`: Kernel source code.
+    - `main.rs`: Kernel entry point and initialization.
+    - `lib.rs`: Central module exports.
+    - `drivers/`: Hardware drivers (VGA).
+    - `memory.rs` & `allocator.rs`: Memory subsystem.
+    - `interrupts.rs`: Hardware interrupt handlers.
+    - `task/`: Async executor and tasks (Shell, Keyboard).
+- `tools/`: Helper scripts.
+    - `run.ps1`: Script to build and run in QEMU.
 
-## Toolchain Requirements
+## Roadmap / TODO
 
-To build and run this project, you need the **Rust Nightly** toolchain and QEMU.
+### OS Infrastructure
+- [ ] **Disk Driver**: Implement VirtIO Block driver for persistent storage.
+- [ ] **Filesystem**: Simple filesystem to manage database pages.
+- [ ] **Networking**: VirtIO Net driver for database connections.
 
-### 1. Install Rust Nightly & Components
-SawitCore requires nightly features for bare-metal development.
-
-```bash
-rustup toolchain install nightly
-rustup component add rust-src llvm-tools-preview --toolchain nightly
-```
-
-### 2. Install Bootimage
-The `bootimage` tool compiles the kernel and bootloader into a bootable disk image.
-
-```bash
-cargo install bootimage
-```
-
-### 3. Install QEMU
-Ensure `qemu-system-x86_64` is in your PATH.
+### SawitDB Port
+- [ ] **Pager**: Buffer pool manager for reading/writing pages.
+- [ ] **BTree Index**: Core indexing structure.
+- [ ] **Query Parser**: SQL-like query parser.
+- [ ] **Executor**: Query execution engine.
 
 ## Building and Running
 
-### Build
-```bash
-cargo build --target x86_64-sawitcore.json
-```
+### Prerequisites
+- **Rust Nightly**: `rustup toolchain install nightly`
+- **Bootimage**: `cargo install bootimage`
+- **QEMU**: Ensure `qemu-system-x86_64` is in your PATH.
 
 ### Run (QEMU)
 Use the provided PowerShell script:
@@ -50,7 +66,9 @@ Use the provided PowerShell script:
 ```
 
 Or manually:
+
 ```bash
+cargo build
 cargo bootimage
-qemu-system-x86_64 -drive format=raw,file=target/x86_64-sawitcore/debug/bootimage-sawitcore.bin
+qemu-system-x86_64 -drive format=raw,file=target/x86_64-sawitcore/debug/bootimage-sawitcore-os.bin
 ```
