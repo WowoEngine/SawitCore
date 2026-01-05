@@ -4,6 +4,13 @@ SawitCore OS is a specialized Unikernel Database Operating System built with Rus
 
 The goal is to port the **SawitDB** engine (originally Go/Node.js) to run natively as the OS kernel.
 
+<div align="center">
+
+[![SawitDB-Go](https://img.shields.io/badge/SawitDB%20Go%20Version-Visit%20Repo-cyan?style=for-the-badge&logo=go)](https://github.com/WowoEngine/SawitDB-Go)
+[![SawitDB-Node](https://img.shields.io/badge/SawitDB%20Node.js%20Version-Visit%20Repo-green?style=for-the-badge&logo=nodedotjs)](https://github.com/WowoEngine/SawitDB)
+
+</div>
+
 ## Current Features
 
 - **Kernel Core**: Minimal x86_64 kernel with custom target specification.
@@ -72,3 +79,8 @@ cargo build
 cargo bootimage
 qemu-system-x86_64 -drive format=raw,file=target/x86_64-sawitcore/debug/bootimage-sawitcore-os.bin
 ```
+
+## License & Contributing
+
+- **License**: This project is licensed under the [MIT License](LICENSE).
+- **Contributing**: Please read [CONTRIBUTING.md](CONTRIBUTING.md) for details on our code of conduct, and the process for submitting pull requests to us.
