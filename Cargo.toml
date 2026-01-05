@@ -17,6 +17,9 @@ linked_list_allocator = "0.9.0"
 crossbeam-queue = { version = "0.3.11", default-features = false, features = ["alloc"] }
 conquer-once = { version = "0.4.0", default-features = false }
 futures-util = { version = "0.3.28", default-features = false, features = ["alloc"] }
+log = "0.4"
+smoltcp = { version = "0.9.1", default-features = false, features = ["alloc", "medium-ethernet", "proto-ipv4", "socket-tcp"] }
+virtio-drivers = { version = "0.4.0", default-features = false, features = ["alloc"] }
 
 [profile.dev]
 panic = "abort"

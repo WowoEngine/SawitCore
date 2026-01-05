@@ -7,6 +7,7 @@ use bootloader::{BootInfo, entry_point};
 use sawitcore_os::memory::BootInfoFrameAllocator;
 use sawitcore_os::allocator;
 use x86_64::{VirtAddr};
+use sawitcore_os::task::Task;
 
 extern crate alloc;
 
@@ -21,6 +22,9 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
     // println!("BootInfo: {:#?}", boot_info);
     let phys_mem_offset = VirtAddr::new(boot_info.physical_memory_offset);
     // let phys_mem_offset = VirtAddr::new(0);
+    // Init Global Offset for drivers
+    unsafe { sawitcore_os::memory::PHYSICAL_MEMORY_OFFSET = boot_info.physical_memory_offset; }
+    
     let mut mapper = unsafe { sawitcore_os::memory::init(phys_mem_offset) };
     let mut frame_allocator = unsafe {
         BootInfoFrameAllocator::init(&boot_info.memory_map)
@@ -28,6 +32,15 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
 
     allocator::init_heap(&mut mapper, &mut frame_allocator)
         .expect("heap initialization failed");
+    
+    // Initialize Global Frame Allocator for VirtIO HAL
+    {
+        let mut global_allocator = sawitcore_os::memory::FRAME_ALLOCATOR.lock();
+        *global_allocator = Some(frame_allocator.clone());
+    }
+
+    // Initialize Network (requires Heap + DMA/FrameAllocator)
+    sawitcore_os::drivers::net::init();
 
     // --- SAWITI DB VERIFICATION ---
     use alloc::boxed::Box;
@@ -92,7 +105,9 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
 
     let mut executor = sawitcore_os::task::simple_executor::SimpleExecutor::new();
 
-    executor.spawn(sawitcore_os::task::Task::new(sawitcore_os::task::shell::shell_task()));
+    executor.spawn(Task::new(sawitcore_os::task::shell::shell_task()));
+    executor.spawn(Task::new(sawitcore_os::task::net::poll_task()));
+    executor.spawn(Task::new(sawitcore_os::task::net::server_task()));
     executor.run();
 
     #[allow(clippy::empty_loop)]
@@ -103,6 +118,6 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
 
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
-    println!("{}", info);
+    sawitcore_os::serial_println!("{}", info);
     loop {}
 }

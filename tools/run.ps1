@@ -5,5 +5,5 @@ if (Test-Path $qemuPath) {
 }
 
 # Run via cargo run (which uses bootimage runner -> qemu)
-cargo run
-
+# Run via cargo run with network flags
+cargo run -- -netdev user,id=u1,hostfwd=tcp::8023-:8023 -device virtio-net-pci,netdev=u1 -serial stdio > qemu.log 2>&1

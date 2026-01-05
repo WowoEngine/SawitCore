@@ -15,6 +15,8 @@ pub static PICS: spin::Mutex<ChainedPics> =
 pub enum InterruptIndex {
     Timer = PIC_1_OFFSET,
     Keyboard = PIC_1_OFFSET + 1,
+    PciInt10 = PIC_1_OFFSET + 10,
+    PciInt11 = PIC_1_OFFSET + 11,
 }
 
 impl InterruptIndex {
@@ -39,6 +41,10 @@ lazy_static! {
             .set_handler_fn(timer_interrupt_handler);
         idt[InterruptIndex::Keyboard.as_usize()]
             .set_handler_fn(keyboard_interrupt_handler);
+        idt[InterruptIndex::PciInt10.as_usize()]
+            .set_handler_fn(pci_interrupt_handler_10);
+        idt[InterruptIndex::PciInt11.as_usize()]
+            .set_handler_fn(pci_interrupt_handler_11);
         idt
     };
 }
@@ -81,5 +87,41 @@ extern "x86-interrupt" fn keyboard_interrupt_handler(
     unsafe {
         PICS.lock()
             .notify_end_of_interrupt(InterruptIndex::Keyboard.as_u8());
+    }
+}
+
+extern "x86-interrupt" fn pci_interrupt_handler_10(
+    _stack_frame: InterruptStackFrame)
+{
+    use x86_64::instructions::port::Port;
+    let io_base = crate::drivers::net::VIRTIO_IO_BASE.load(core::sync::atomic::Ordering::Relaxed);
+    if io_base != 0 {
+        let mut isr_port = Port::<u8>::new(io_base + 19); // 19 = ISR Offset
+        unsafe { isr_port.read() }; // Read to clear interrupt
+    }
+    unsafe {
+        PICS.lock()
+            .notify_end_of_interrupt(InterruptIndex::PciInt10.as_u8());
+    }
+}
+
+extern "x86-interrupt" fn pci_interrupt_handler_11(
+    _stack_frame: InterruptStackFrame)
+{
+    use x86_64::instructions::port::Port;
+    let io_base = crate::drivers::net::VIRTIO_IO_BASE.load(core::sync::atomic::Ordering::Relaxed);
+    if io_base != 0 {
+        let mut isr_port = Port::<u8>::new(io_base + 19); // 19 = ISR Offset
+        let isr = unsafe { isr_port.read() }; 
+        if isr & 1 != 0 || isr & 2 != 0 {
+             // Valid VirtIO Interrupt
+        } else {
+             // Spurious / Shared
+             panic!("Spurious Interrupt on IRQ 11 (ISR={:#x})", isr);
+        }
+    }
+    unsafe {
+        PICS.lock()
+            .notify_end_of_interrupt(InterruptIndex::PciInt11.as_u8());
     }
 }

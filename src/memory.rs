@@ -37,6 +37,7 @@ unsafe fn active_level_4_table(physical_memory_offset: VirtAddr)
 }
 
 /// A FrameAllocator that returns usable frames from the bootloader's memory map.
+#[derive(Clone)]
 pub struct BootInfoFrameAllocator {
     memory_map: &'static MemoryMap,
     next: usize,
@@ -78,3 +79,12 @@ unsafe impl FrameAllocator<Size4KiB> for BootInfoFrameAllocator {
         frame
     }
 }
+
+use spin::Mutex;
+use lazy_static::lazy_static;
+
+lazy_static! {
+    pub static ref FRAME_ALLOCATOR: Mutex<Option<BootInfoFrameAllocator>> = Mutex::new(None);
+}
+
+pub static mut PHYSICAL_MEMORY_OFFSET: u64 = 0;
