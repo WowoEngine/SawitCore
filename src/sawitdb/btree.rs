@@ -109,7 +109,7 @@ impl BTreeIndex {
 
     pub fn insert(&mut self, key: Value, value: Value) {
         if self.root.keys.len() >= self.order {
-            let mut new_root = BTreeNode::new(false);
+            let new_root = BTreeNode::new(false);
             let old_root = core::mem::replace(&mut self.root, new_root);
             self.root.children.push(old_root);
             

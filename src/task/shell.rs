@@ -10,6 +10,12 @@ pub async fn shell_task() {
     
     let mut line_buffer = String::new();
     let mut in_management_mode = false;
+    
+    // SawitDB State
+    use crate::sawitdb::btree::BTreeIndex;
+    use crate::sawitdb::types::Value;
+    // We only support one table for now in this simple shell
+    let mut active_table: Option<BTreeIndex> = None;
 
     print!("Sawit> ");
 
@@ -21,23 +27,89 @@ pub async fn shell_task() {
                         match character {
                             '\n' => {
                                 println!();
-                                if line_buffer.trim() == "manage" {
+                                let command_line = line_buffer.trim();
+                                if command_line == "manage" {
                                     in_management_mode = true;
                                     print_management_menu();
-                                } else if line_buffer.trim() == "exit" && in_management_mode {
+                                } else if command_line == "exit" && in_management_mode {
                                     in_management_mode = false;
                                     println!("Exited management mode.");
-                                } else if line_buffer.trim() == "help" {
+                                } else if command_line == "help" {
                                     println!("Available commands:");
                                     println!("  manage  - Open SawitDB Management Menu");
                                     println!("  help    - Show this help");
-                                    println!("  clear   - Clear screen (simulated)");
-                                } else if !line_buffer.trim().is_empty() {
+                                    println!("  clear   - Clear screen");
+                                } else if command_line == "clear" {
+                                     // Poor man's clear
+                                     for _ in 0..25 { println!(); }
+                                } else if !command_line.is_empty() {
                                     if in_management_mode {
-                                        println!("Command '{}' not recognized in management mode.", line_buffer.trim());
-                                        print_management_menu();
+                                        // Management Commands
+                                        let parts: alloc::vec::Vec<&str> = command_line.split_whitespace().collect();
+                                        match parts[0] {
+                                            "help" => print_management_menu(),
+                                            "meminfo" => {
+                                                use crate::allocator::{HEAP_SIZE, HEAP_START};
+                                                println!("OS Memory Info:");
+                                                println!("  Heap Start: {:#x}", HEAP_START);
+                                                println!("  Heap Size:  {} KiB", HEAP_SIZE / 1024);
+                                                // We can't easily get used/free from LockedHeap without modifying it
+                                                println!("  Status:     Initialized");
+                                            },
+                                            "db_init" => {
+                                                if parts.len() < 2 {
+                                                    println!("Usage: db_init <table_name>");
+                                                } else {
+                                                    let name = String::from(parts[1]);
+                                                    active_table = Some(BTreeIndex::new(4, name.clone(), String::from("id")));
+                                                    println!("Table '{}' initialized.", name);
+                                                }
+                                            },
+                                            "put" => {
+                                                // put <key_int> <val_str>
+                                                if let Some(ref mut table) = active_table {
+                                                    if parts.len() < 3 {
+                                                        println!("Usage: put <key_int> <val_string>");
+                                                    } else {
+                                                        if let Ok(k) = parts[1].parse::<i64>() {
+                                                            let val_str = String::from(parts[2]); // Take first word as val
+                                                            // Re-join rest if needed? For now simple single word
+                                                            table.insert(Value::Int(k), Value::String(val_str));
+                                                            println!("Inserted.");
+                                                        } else {
+                                                            println!("Error: Key must be integer");
+                                                        }
+                                                    }
+                                                } else {
+                                                    println!("Error: No table active. Run 'db_init <table>'");
+                                                }
+                                            },
+                                            "get" => {
+                                                if let Some(ref table) = active_table {
+                                                    if parts.len() < 2 {
+                                                        println!("Usage: get <key_int>");
+                                                    } else {
+                                                        if let Ok(k) = parts[1].parse::<i64>() {
+                                                             let results = table.search(&Value::Int(k));
+                                                             if results.is_empty() {
+                                                                 println!("Not Found.");
+                                                             } else {
+                                                                 // Print first result
+                                                                 println!("Found: {:?}", results[0]);
+                                                             }
+                                                        } else {
+                                                            println!("Error: Key must be integer");
+                                                        }
+                                                    }
+                                                } else {
+                                                    println!("Error: No table active.");
+                                                }
+                                            },
+                                            _ => println!("Unknown command '{}'. Type 'help' for menu.", parts[0]),
+                                        }
+                                        
                                     } else {
-                                        println!("Unknown command: '{}'", line_buffer.trim());
+                                        println!("Unknown command: '{}'", command_line);
                                     }
                                 }
                                 
@@ -51,7 +123,6 @@ pub async fn shell_task() {
                             '\x08' => { // Backspace
                                 if !line_buffer.is_empty() {
                                     line_buffer.pop();
-                                    // Hacky backspace handling for VGA buffer: move back, overwrite space, move back
                                     print!("{}", '\x08'); 
                                 }
                             }
@@ -61,9 +132,7 @@ pub async fn shell_task() {
                             }
                         }
                     },
-                    DecodedKey::RawKey(_key) => {
-                         // handle special keys if needed
-                    },
+                    DecodedKey::RawKey(_key) => {},
                 }
             }
         }
@@ -72,8 +141,9 @@ pub async fn shell_task() {
 
 fn print_management_menu() {
     println!("\n--- SawitDB Management ---");
-    println!("1. [TODO] Create Database");
-    println!("2. [TODO] View Tables");
-    println!("3. [TODO] Query Data");
-    println!("Type 'exit' to return to shell.");
+    println!("meminfo           - Show Memory Stats");
+    println!("db_init <table>   - Create new Table Index");
+    println!("put <key> <val>   - Insert Data (Key=Int)");
+    println!("get <key>         - Query Data");
+    println!("exit              - Return to Shell");
 }

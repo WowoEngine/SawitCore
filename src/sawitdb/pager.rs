@@ -11,7 +11,7 @@ pub struct Pager {
 }
 
 impl Pager {
-    pub fn new(mut disk: Box<dyn BlockIO>) -> Result<Self, BlockError> {
+    pub fn new(disk: Box<dyn BlockIO>) -> Result<Self, BlockError> {
         let mut p = Pager { disk };
         
         // Check if file is initialized or empty
