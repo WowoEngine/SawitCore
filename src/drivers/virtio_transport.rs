@@ -47,9 +47,23 @@ impl Transport for LegacyPciTransport {
         f
     }
     fn write_driver_features(&mut self, driver_features: u64) {
+        // CRITICAL FIX: Mask VIRTIO_F_MRG_RXBUF (bit 16, NOT 15!) which causes header size mismatch
+        // Legacy VirtIO uses 10-byte header, but MRG_RXBUF requires 12-byte header
+        const VIRTIO_F_MRG_RXBUF: u64 = 1 << 16;  // CORRECTED: bit 16, not 15!
+        const VIRTIO_F_VERSION_1: u64 = 1 << 32;
+        
+        crate::serial_println!("VirtIO Features: Device offered {:#x}", driver_features);
+        crate::serial_println!("  Bit 16 (MRG_RXBUF) = {}", (driver_features & VIRTIO_F_MRG_RXBUF) != 0);
+        crate::serial_println!("  Bit 5 (MAC) = {}", (driver_features & (1 << 5)) != 0);
+        
+        // Only keep features compatible with Legacy transport
+        let legacy_features = driver_features & !(VIRTIO_F_MRG_RXBUF | VIRTIO_F_VERSION_1);
+        
+        crate::serial_println!("VirtIO Features: Driver accepting {:#x}", legacy_features);
+        crate::serial_println!("  After mask: Bit 16 = {}", (legacy_features & VIRTIO_F_MRG_RXBUF) != 0);
+        
         let mut port = Port::<u32>::new(self.io_addr + OFFSET_GUEST_FEATURES);
-        crate::serial_println!("VirtIO Features Negotiated: {:#x}", driver_features);
-        unsafe { port.write(driver_features as u32) }
+        unsafe { port.write(legacy_features as u32) }
     }
     fn max_queue_size(&self) -> u32 {
         let mut port = Port::<u16>::new(self.io_addr + OFFSET_QUEUE_SIZE);

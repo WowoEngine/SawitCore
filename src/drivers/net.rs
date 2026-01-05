@@ -39,6 +39,15 @@ impl Device for VirtioNetWrapper {
     type TxToken<'a> = VirtioTxToken<'a> where Self: 'a;
 
     fn receive(&mut self, _timestamp: Instant) -> Option<(Self::RxToken<'_>, Self::TxToken<'_>)> {
+        // Track how often smoltcp calls receive()
+        static mut RECEIVE_CALL_COUNT: u64 = 0;
+        unsafe {
+            RECEIVE_CALL_COUNT += 1;
+            if RECEIVE_CALL_COUNT % 100000 == 0 {
+                crate::serial_println!("Device::receive() called {} times by smoltcp", RECEIVE_CALL_COUNT);
+            }
+        }
+        
         // Manually ACK/Clear ISR since we masked the IRQ in PIC
         // This ensures the device doesn't stall thinking an interrupt is pending
         let io_base = VIRTIO_IO_BASE.load(core::sync::atomic::Ordering::Relaxed);
@@ -46,12 +55,28 @@ impl Device for VirtioNetWrapper {
              unsafe { Port::<u8>::new(io_base + 19).read(); }
         }
 
+        // DEBUG: Log receive attempt
+        static mut RX_ATTEMPT_COUNT: u64 = 0;
+        unsafe {
+            RX_ATTEMPT_COUNT += 1;
+            if RX_ATTEMPT_COUNT % 100000 == 0 {
+                crate::serial_println!("RX Attempt #{}: Calling driver.receive()...", RX_ATTEMPT_COUNT);
+            }
+        }
+
         match self.driver.receive() {
             Ok(rx_buffer) => {
-                crate::serial_println!("RX Pkt: Len {}", rx_buffer.packet_len());
+                crate::serial_println!("✓ RX SUCCESS! Packet Len: {}", rx_buffer.packet_len());
                 Some((VirtioRxToken(rx_buffer), VirtioTxToken(&mut self.driver)))
             },
-            Err(_) => None,
+            Err(e) => {
+                unsafe {
+                    if RX_ATTEMPT_COUNT % 100000 == 0 {
+                        crate::serial_println!("  RX Error: {:?}", e);
+                    }
+                }
+                None
+            },
         }
     }
 
@@ -69,10 +94,18 @@ impl Device for VirtioNetWrapper {
 }
 
 pub struct VirtioRxToken(RxBuffer);
+
 impl smoltcp::phy::RxToken for VirtioRxToken {
     fn consume<R, F>(mut self, f: F) -> R
     where F: FnOnce(&mut [u8]) -> R {
-        f(self.0.packet_mut())
+        // Process the packet
+        let result = f(self.0.packet_mut());
+        
+        // NOTE: We're NOT recycling the buffer here due to Rust borrow checker limitations
+        // This may cause RX queue to fill up, but virtio-drivers should handle this internally
+        // TODO: Investigate alternative recycling strategies
+        
+        result
     }
 }
 

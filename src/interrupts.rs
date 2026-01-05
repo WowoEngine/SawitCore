@@ -114,10 +114,10 @@ extern "x86-interrupt" fn pci_interrupt_handler_11(
         let mut isr_port = Port::<u8>::new(io_base + 19); // 19 = ISR Offset
         let isr = unsafe { isr_port.read() }; 
         if isr & 1 != 0 || isr & 2 != 0 {
-             // Valid VirtIO Interrupt
+             crate::serial_println!("PCI Interrupt 11 (ISR={:#x})", isr);
         } else {
              // Spurious / Shared
-             panic!("Spurious Interrupt on IRQ 11 (ISR={:#x})", isr);
+             crate::serial_println!("Spurious Interrupt on IRQ 11 (ISR={:#x})", isr);
         }
     }
     unsafe {
